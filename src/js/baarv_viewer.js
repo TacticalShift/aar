@@ -30,8 +30,8 @@ var appProperties = {
 		}
 	},
 	"links": {
-		"aarList": "https://tacticalshift.github.io/aar/",
-		"aarViewer": "https://tacticalshift.github.io/aar/viewer"
+		"aarList": "https://tacticalshift.github.io/aar/index.html",
+		"aarViewer": "https://tacticalshift.github.io/aar/viewer.html"
 	}
 }
 
@@ -230,7 +230,7 @@ var SMM = {
 
 function goToList() {
  	window.open(
- 		window.location.href == appProperties.links.arrViewer ? appProperties.links.aarList : "Web-AAR-List.html"
+ 		window.location.href.split('?')[0] == appProperties.links.aarViewer ? appProperties.links.aarList : "Web-AAR-List.html"
  		,"_self"
  	)
 }
