@@ -30,8 +30,8 @@ var appProperties = {
 		}
 	},
 	"links": {
-		"aarList": "http://aar.tacticalshift.ru",
-		"aarViewer": "http://aar.tacticalshift.ru/Web-AAR-Viewer.html"
+		"aarList": "https://tacticalshift.github.io/aar/",
+		"aarViewer": "https://tacticalshift.github.io/aar/viewer"
 	}
 }
 
