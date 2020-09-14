@@ -104,6 +104,10 @@
 					if (aarConfig.length == 0) {
 						showNoItems();
 					};
+					
+					let isAvailable = function (aarInfo) {
+						return (aarInfo.hasOwnProperty("available") ? aarInfo.available : true)
+					};
 				
 					for (var i=0; i < aarConfig.length; i++) {
 						$( "#wrapper" ).append(
@@ -111,7 +115,7 @@
 							+ "<div class='line2'>" + aarConfig[i].date
 							+ "</div><div class='line4'>" + aarConfig[i].title
 							+ "</div><div class='line2'>" + aarConfig[i].terrain
-							+ "</div><div class='line2'><div class='btn' onClick='openFromList(" + i + ")'>► Показать</div></div>"
+							+ (isAvailable(aarConfig[i]) ? "</div><div class='line2'><div class='btn' onClick='openFromList(" + i + ")'>► Показать</div></div>" : "</div><div class='line2'><div >N/A</div></div>")
 							+ "</div>"					
 						);				
 					};
