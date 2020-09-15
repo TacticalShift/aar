@@ -35,6 +35,8 @@ var appProperties = {
 	}
 }
 
+
+var aarFileData;
 var aarData = {};
 var aarCurrentTime = 0;
 var aarPlaying = false;
@@ -282,23 +284,28 @@ function loadAAR(path) {
 	document.body.appendChild(aarLoadScript);
 }
 
-function loadZippedAAR(path) {
-	let zblob = await fetch(fileUrl).then(r => r.blob());
+async function loadZippedAAR(path) {
+	let url = window.location.toString().split("?")[0];
+	url = (url.substring(0, url.lastIndexOf("/"))) + "/" + path;
+	
+	let zblob = await fetch(url).then(r => r.blob());
 	let zdata = null;
+	
+	console.log(url);
+	console.log(zblob);
 
 	zip.createReader(new zip.BlobReader(zblob), function(reader) {
 		reader.getEntries(function(entries) {
 			if (entries.length) {
 				entries[0].getData(new zip.TextWriter(), function(text) {
 					zdata = text;
-					reader.close(function() {});
+					console.log(zdata);
+					aarFileData = JSON.parse(zdata.replace("aarFileData = ","").substring(-1));
+					reader.close(function() { onSuccessAARLoad(); });
 				}, function(current, total) {});
 			}
 		});
-	}, function(error) { onFailedAARLoad(); });
-
-	aarFileData = JSON.parse(zdata.replace("aarFileData = ","").substring(-1));
-	onSuccessAARLoad();
+	}, function(error) { console.log( "Error happened" ); onFailedAARLoad(); });
 }
 
 function startViewer() {
