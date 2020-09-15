@@ -929,5 +929,6 @@ $( document ).ready(function () {
 
 	$( "#player-line > button" ).attr( "disabled", "true" );
 
+	zip.workerScriptsPath = "src/js/";
 	startViewer();
 });
