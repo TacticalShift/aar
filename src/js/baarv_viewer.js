@@ -289,18 +289,11 @@ async function loadZippedAAR(path) {
 	url = (url.substring(0, url.lastIndexOf("/"))) + "/" + path;
 	
 	let zblob = await fetch(url).then(r => r.blob());
-	let zdata = null;
-	
-	console.log(url);
-	console.log(zblob);
-
 	zip.createReader(new zip.BlobReader(zblob), function(reader) {
 		reader.getEntries(function(entries) {
 			if (entries.length) {
 				entries[0].getData(new zip.TextWriter(), function(text) {
-					zdata = text;
-					console.log(zdata);
-					aarFileData = JSON.parse(zdata.replace("aarFileData = ","").substring(-1));
+					aarFileData = JSON.parse(text.replace("aarFileData = ","").substring(-1));
 					reader.close(function() { onSuccessAARLoad(); });
 				}, function(current, total) {});
 			}
