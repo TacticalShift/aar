@@ -254,6 +254,7 @@ function onSuccessAARLoad() {
 	$( "#header-choose-file-btn" ).remove();
 	
 	aarData = aarFileData;
+	aarFileData = null;
 	
 	document.title = "AAR - " + aarData.metadata.name;
 	$( "#header-status-text" ).html( appProperties.headerStatus.onload.text );
@@ -280,6 +281,26 @@ function loadAAR(path) {
 	aarLoadScript.addEventListener('load', onSuccessAARLoad, false);
 	document.body.appendChild(aarLoadScript);
 }
+
+function loadZippedAAR(path) {
+	let zblob = await fetch(fileUrl).then(r => r.blob());
+	let zdata = null;
+
+	zip.createReader(new zip.BlobReader(zblob), function(reader) {
+		reader.getEntries(function(entries) {
+			if (entries.length) {
+				entries[0].getData(new zip.TextWriter(), function(text) {
+					zdata = text;
+					reader.close(function() {});
+				}, function(current, total) {});
+			}
+		});
+	}, function(error) { onFailedAARLoad(); });
+
+	aarFileData = JSON.parse(zdata.replace("aarFileData = ","").substring(-1));
+	onSuccessAARLoad();
+}
+
 function startViewer() {
     $( "#header-choose-file-btn" ).hide();
 	let aarPath = "";
@@ -295,7 +316,11 @@ function startViewer() {
 		};
 	};
 	
-	loadAAR(aarPath);
+	if (aarPath.substr(-3).toLowerCase() == "zip") {
+		loadZippedAAR(aarPath);
+	} else {
+		loadAAR(aarPath);
+	}
 }
 
 // getMapParams(aarData.metadata.island)
