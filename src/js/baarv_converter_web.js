@@ -532,11 +532,15 @@ function saveZipFile(filename, blob) {
 		saveFile("x.zip", blob)
 	};
 	
-	zip.createWriter(new zip.BlobWriter("application/zip"), function (zipWritter) {
-		zipWriter.add("test_filename.txt", new zip.BlobReader(blob), function () {
-			zipWriter.close(onClose);
-		});
-	}, function (message) { console.error(message) });
+	zip.createWriter(
+		new zip.BlobWriter("application/zip")
+		, function (zipWriter) {
+			zipWriter.add(filename, new zip.BlobReader(blob), function () {
+				zipWriter.close(onClose);
+			});
+		}
+		, function (message) { console.error(message) }
+	);
 }
 
 function saveFile(filename, blob) {
