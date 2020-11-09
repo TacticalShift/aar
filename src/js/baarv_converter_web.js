@@ -437,32 +437,32 @@ var AARFileDetailsBase = function() {
 	this.configLine = "";
 
     this.setFilename = function() {
-    	this.filename = "AAR." + this.date + "." + this.island + "." + (this.name).replace(/ /g, '_') + ".txt";
+    	this.filename = "AAR." + this.date + "." + this.island + "." + (this.name).replace(/ /g, '_');
     	this.draw();
     };
 
     this.updateAAR = function() {
     	this.draw();
 
-        aarData.metadata.name 		= $( "#mission-name" ).val();
-		aarData.metadata.desc	= $( "#mission-desc" ).val();
-		aarData.metadata.island		= $( "#mission-island" ).val();
-		aarData.metadata.date 		= $( "#mission-date" ).val();
+        aarData.metadata.name   = $( "#mission-name" ).val();
+		aarData.metadata.desc   = $( "#mission-desc" ).val();
+		aarData.metadata.island = $( "#mission-island" ).val();
+		aarData.metadata.date   = $( "#mission-date" ).val();
 
-        this.name 		= aarData.metadata.name;
-        this.summary	= aarData.metadata.desc;
-        this.island 	= aarData.metadata.island;
-        this.date 		= aarData.metadata.date;
+        this.name    = aarData.metadata.name;
+        this.summary = aarData.metadata.desc;
+        this.island  = aarData.metadata.island;
+        this.date    = aarData.metadata.date;
 
         console.log( "AAR text re-generated.");
     };
     this.generateConfigLine = function() {
     	var br = "\n";
-    	this.configLine = '{' +  br + '"date": "' + this.date
-    	+ '"' +  br + ',"title": "' + this.name
-    	+ '"' +  br + ',"terrain": "' + this.island
-    	+ '"' +  br + ',"link": "aars/' + this.filename
-    	+ '"' +  br + '},';
+    	this.configLine = '	{' +  br + '		"date": "' + this.date
+    	+ '"' +  br + '		,"title": "' + this.name
+    	+ '"' +  br + '		,"terrain": "' + this.island
+    	+ '"' +  br + '		,"link": "aars/' + this.filename + (zipAARFile ? ".zip" : ".txt")
+    	+ '"' +  br + '	},';
     }
 
 	this.initEvents = function() {
@@ -507,35 +507,29 @@ function saveGeneratedAARData() {
     );
 	$('#output-config-line').append("<textarea cols='40' rows='6'>" + AARFileDetails.configLine + "</textarea>"	);
 
-
 	setTimeout ( saveAARFile, 500, "aarFileData = " + JSON.stringify( aarData ) )
 }
 
 function saveAARFile(data) {	
-    var a = document.createElement("a");
 	let filename = AARFileDetails.filename;
     let blob = new Blob([data], {type: "text/plain"});	
 	if (zipAARFile) {
 		saveZipFile(filename, blob);
 	} else {
-		saveFile(filename, blob);
+		saveFile(filename + ".txt", blob);
 	}
 }
 
 function saveZipFile(filename, blob) {
-	var zippedFile;
-	
 	let onClose = function (blob) { 
 		console.log(blob);
-		zippedFile = blob; 
-		
-		saveFile("x.zip", blob)
+		saveFile(filename + ".zip", blob)
 	};
 	
 	zip.createWriter(
 		new zip.BlobWriter("application/zip")
 		, function (zipWriter) {
-			zipWriter.add(filename, new zip.BlobReader(blob), function () {
+			zipWriter.add(filename + ".txt", new zip.BlobReader(blob), function () {
 				zipWriter.close(onClose);
 			});
 		}
@@ -545,7 +539,7 @@ function saveZipFile(filename, blob) {
 
 function saveFile(filename, blob) {
 	var a = document.createElement("a");
-    a.href = URL.createObjectURL(file);
+    a.href = URL.createObjectURL(blob);
     a.download = filename;
     a.click();
 	
