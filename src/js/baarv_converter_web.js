@@ -25,6 +25,7 @@ var statusElement = {
 };
 
 var enableInterpolation = false;
+var zipAARFile = true;
 var rptData = "";
 var reportGuid = "";
 var aarData;
@@ -210,8 +211,7 @@ function convertToAAR() {
 	aarData.metadata.desc = metadataCore.summary;
 	logMsg( "Metadata: Core [ OK ]" );
 	
-	logMsg( "Objects [ Processing ]" );
-	
+	logMsg( "Objects [ Processing ]" );	
 	for (var i = 0; i < rptItems.length; i++) {		
 		try {
 			var u = JSON.parse( normalize(rptItems[i].match( /(<meta><veh>)(.*)(<\/veh><\/meta>)/i )[2]) );
@@ -384,6 +384,8 @@ function convertToAAR() {
 		$( "#player-list" ).append( "<li class='player-side-icon' style='padding: 2px 4px; background-color: " + color + "'>" + aarData.metadata.players[i][0] + "</li>" );				
 	}
 	
+	
+	
 	logMsg("Done!");
 	toggleProgressView(false);
 	$( "#result-form" ).css( "top", "75px" );
@@ -511,13 +513,40 @@ function saveGeneratedAARData() {
 
 function saveAARFile(data) {	
     var a = document.createElement("a");
-    var file = new Blob([data], {type: "text/plain"});
+	let filename = AARFileDetails.filename;
+    let blob = new Blob([data], {type: "text/plain"});	
+	if (zipAARFile) {
+		saveZipFile(filename, blob);
+	} else {
+		saveFile(filename, blob);
+	}
+}
+
+function saveZipFile(filename, blob) {
+	var zippedFile;
+	
+	let onClose = function (blob) { 
+		console.log(blob);
+		zippedFile = blob; 
+		
+		saveFile("x.zip", blob)
+	};
+	
+	zip.createWriter(new zip.BlobWriter("application/zip"), function (zipWritter) {
+		zipWriter.add("test_filename.txt", new zip.BlobReader(blob), function () {
+			zipWriter.close(onClose);
+		});
+	}, function (message) { console.error(message) });
+}
+
+function saveFile(filename, blob) {
+	var a = document.createElement("a");
     a.href = URL.createObjectURL(file);
-    a.download = AARFileDetails.filename;
+    a.download = filename;
     a.click();
 	
 	toggleProgressView(false);
-}
+};
 
 function saveConfigFile(data) {
 	var a = document.createElement("a");
@@ -542,5 +571,7 @@ function initToggleInterpolate () {
 $( document ).ready(function() {
 	$( ".dl-2 > input, textarea, button" ).attr( "disabled", "true" );
 	resetForm();
+	
+	zip.workerScriptsPath = "src/js/";
 	initToggleInterpolate();
 });
