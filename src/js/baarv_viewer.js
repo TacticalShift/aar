@@ -635,31 +635,56 @@ function isPlayer(id) {
 // Actors
 
 function createObject(data,type) {
-	// 0: Unit Array
-	// 1: "unit" or "veh"
-	var id = data[0];
-	var name = data[1];
+	/* Creates DIV with nested IMG representing single unit
+	0: Unit Array 
+		[
+			0: unitId, 
+			1: name (if player name or vehicle type)
+			2: side (optional, side name of the unit; not set for vehicles)
+			3: isPlayer (optional, int, 1 - player, 0 - AI; not set for vehicles)
+		]
+	 1: "unit" or "veh"
+	*/
+	const id = data[0];
+	const name = data[1];
+	const side = (type == "unit") ? data[2] : "unknown";
+	const iconType = (type == "unit") ? "unit" : "vehicle";
+	const icon = `src/icons/${iconType}.${aarIconSrc}`;
+	
+	// TODO: Set filters 
+	let iconFilters = [
+		
+	]
+	
+	// Add new DIV
+	$( ".panzoom" ).append( 
+		"<div id='mrk-unit-" + 
+		id + 
+		"' class='unit-marker'><img class='icn' dir='0' src='" + 
+		icon + 
+		"' /><span>" + 
+		name + 
+		"</span></div>" 
+	);
 
-	var side = (function(){var a = ""; if (type == "unit") { a = data[2] } else { a ="unknown" }; return a})();
-	var icon = "src/icons/" + side + "_" + type + "." + aarIconSrc;
-	$( ".panzoom" ).append( "<div id='mrk-unit-" + id + "' class='unit-marker'><img class='icn' dir='0' src='" + icon + "' /><span>" + name + "</span></div>" );
-
-	$( "#mrk-unit-" + id ).attr({
+	// Set attributes for new DIV 
+	const $mrk = $( "#mrk-unit-" + id );
+	$mrk.attr({
 		"side": side,
 		"type": type,
 		"name": name
 	});
-
-	$("#mrk-unit-" + id + " > .icn").attr({"title": name});
-
-	$( ".icn" ).css({
-		"width": getScaledVal(32) + "px",
-		"height": getScaledVal(32) + "px"
-	});
-
-	$( "#mrk-unit-" + id ).css({
+	$mrk.css({
 	 	"font-size": getScaledVal(16) + "px",
 	 	"z-index": 2
+	});
+	
+	const $mrkImg = $("#mrk-unit-" + id + " > img");
+	$mrkImg.attr({"title": name});
+	$mrkImg.css({
+		"width": getScaledVal(32) + "px",
+		"height": getScaledVal(32) + "px",
+		"filter": ""
 	});
 }
 
