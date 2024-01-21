@@ -35,7 +35,15 @@ const appProperties = {
 		"aarViewer": "https://tacticalshift.github.io/aar/viewer.html"
 	}
 }
-
+const MARKER_COLORS = {
+	deadPlayer: "brightness(0) saturate(100%) invert(80%) sepia(43%) saturate(6%) hue-rotate(55deg) brightness(85%) contrast(93%)",
+	dead: "brightness(0) saturate(100%) invert(56%) sepia(10%) saturate(26%) hue-rotate(320deg) brightness(96%) contrast(92%)",
+	blufor: "brightness(0) saturate(100%) invert(22%) sepia(89%) saturate(1518%) hue-rotate(191deg) brightness(89%) contrast(105%)",
+	opfor: "brightness(0) saturate(100%) invert(10%) sepia(64%) saturate(4975%) hue-rotate(354deg) brightness(90%) contrast(111%)",
+	indep: "brightness(0) saturate(100%) invert(28%) sepia(92%) saturate(1078%) hue-rotate(88deg) brightness(98%) contrast(104%)",
+	civ: "brightness(0) saturate(100%) invert(7%) sepia(69%) saturate(6317%) hue-rotate(287deg) brightness(114%) contrast(120%)",
+	unknown: "brightness(0) saturate(100%) invert(48%) sepia(87%) saturate(721%) hue-rotate(23deg) brightness(97%) contrast(101%)"
+}
 
 var aarFileData;
 var aarData = {};
@@ -560,7 +568,7 @@ function mapOnLoad() {
 }
 
 // Panzoom Init
-var panzoomInit = function() {
+function panzoomInit() {
 	var $panzoom = $('.panzoom').panzoom();
 	$('.panzoom').panzoom("option", {
 		minScale: 0.1,
@@ -573,12 +581,10 @@ var panzoomInit = function() {
 	});
 	SMM.change();
 	SMM.redraw(1);
-
-	$panzoom.parent().on('mousewheel.focal', function( e ) {
-		e.preventDefault();
-		var delta = e.delta || e.originalEvent.wheelDelta;
-		var zoomOut = delta ? delta < 0 : e.originalEvent.deltaY > 0;
-		$panzoom.panzoom('zoom', zoomOut, {
+		
+	const panzoomEl = document.getElementsByClassName("panzoom")[0];
+	panzoomEl.addEventListener("wheel", (e) => {
+		$panzoom.panzoom('zoom', e.deltaY > 0, {
 			increment: 0.1,
 			animate: true,
 			easing: "ease-in-out",
@@ -657,14 +663,16 @@ function createObject(data,type) {
 	});
 }
 
-function setGridPos(unit, data) {
-	if ( data[4] ) {
-		var pos = getGridPos(data[1], data[2])
-		$( unit ).css({
-			"left": pos.x - $( unit ).outerWidth() /2
-			, "top": pos.y - ( $( unit ).outerHeight() - $( unit + " > span" ).outerHeight() )/2
-		});
-	}
+function setGridPos(id, data) {
+	if (!data[4]) return;
+	const pos = getGridPos(data[1], data[2])
+	const $marker = $(`#mrk-unit-${id}`)
+	const $label = $(`#mrk-unit-${id} > span`);
+	
+	$marker.css({
+		"left": pos.x - $marker.outerWidth() /2
+		, "top": pos.y - ( $marker.outerHeight() - $label.outerHeight() )/2
+	});
 }
 
 function getGridPos(x,y) {
@@ -673,77 +681,104 @@ function getGridPos(x,y) {
 
 // Process unit - animate
 function processUnit(data,type) {
-	// 0: unit/vehicle data
-	// 1: "unit" or "veh"
-	var id = data[0];
-	var unit = "#mrk-unit-" + id;
-
-	$( unit + " > img" ).css({"width": getScaledVal(USM.size.icon), "height": getScaledVal(USM.size.icon)});
-    $( unit + " > span" ).css({"font-size": USM.size.text});
-
+	/*
+	0: unit/vehicle data array 
+		0: unitId
+		1: posX
+		2: posY 
+		3: direction 
+		4: alive 
+		5: inCargo (for unit)  -- flag that unit is in cargo 
+		   or owner (for vehicle) -- id of owner unit of the vehicle 
+		6: cargo (for vehicle) -- ids of units in vehicle 
+	1: "unit" or "veh"
+	*/
+	const id = data[0];
+	const $marker = $(`#mrk-unit-${id}`)
+	const $img = $(`#mrk-unit-${id} > img`);
+	const $label = $(`#mrk-unit-${id} > span`);
+	
+	let markerCss = {}
+	let imgCss = {
+		"width": getScaledVal(USM.size.icon),
+		"height": getScaledVal(USM.size.icon)
+	};
+	let labelCss = {
+		"font-size": USM.size.text
+	};
+	
 	if (data.length == 1) {
-		if (type == "unit") {
-			$( unit ).css({"color": "rgba(0, 0, 0, " + LDM.opacity.unit + ")"});
-		} else {
-			$( unit ).css({"color": "rgba(0, 0, 0, " + LDM.opacity.vehEmpty + ")"});
-		}
-
+		// Some special case? 
+		$marker.css("display", "hidden");
+		$img.css(imgCss);
+		$label.css(labelCss);
+		
 		return;
-	}
+	}	
 
-	var dir = data[3];
-	var alive = data[4];
-
-	$( unit + " > img" ).css({"width": getScaledVal(USM.size.icon), "height": getScaledVal(USM.size.icon)});
-	$( unit + " > span" ).css({"font-size": USM.size.text});
-
-	var inCargo, owner, cargo
-	if (type == "unit") {
-		inCargo = data[5];
+	const dir = data[3];
+	const alive = data[4];
+	
+	if (type === "unit") {
+		const inCargo = data[5];
 		if (inCargo == -1) {
-			$( unit + " > img" ).rotate( dir );
-			$( unit ).css({"color": "rgba(0, 0, 0, " + LDM.opacity.unit + ")"});
-			$( unit ).css({"visibility": ""});
-			setGridPos(unit, data);
+			// Not in cargo 
+			labelCss.color = `rgba(0,0,0,${LDM.opacity.unit}`;
+			markerCss.visibility = "";
+			imgCss.transform = `rotate(${dir}deg)`
+			
 		} else {
-			$( unit ).css({ "left": "-20px","top": "-20px", "visibility": "hidden" });
+			// In cargo 
+			markerCss.left = "-20px";
+			markerCss.top = "-20px";
+			markerCss.visibility = "hidden";
+			
 		}
-
-		if (alive < 1) {
-			var typePlayer = "";
-			if (isPlayer(id)) {
-				typePlayer = "player_";
-			}
-			$( unit + "> img" ).attr( "src", "src/icons/dead_" + typePlayer + "unit." + aarIconSrc );
-			$( unit ).css({
-				"color": "rgba(0, 0, 0, " +  LDM.opacity.vehEmpty + ")",
-				"z-index": 0
-			});
+		
+		// Change color to handle forawrd and backward frame direction - to color previously dead units
+		if (alive == 1) {
+			imgCss.filter = MARKER_COLORS[$marker.attr("side")];
 		} else {
-			$( unit + "> img" ).attr( "src", "src/icons/" + $( unit ).attr("side") + "_" + $( unit ).attr("type") + "." + aarIconSrc );
+			// markerCss["z-index"] = 0;
+			labelCss.color = `rgba(0, 0, 0, ${LDM.opacity.vehEmpty})`,
+			imgCss.filter = isPlayer(id) ? MARKER_COLORS.deadPlayer : MARKER_COLORS.dead;
 		}
 	} else {
-		owner = data[5];
-		cargo = data[6];
+		const owner = data[5];
+		const cargo = data[6];
+		const vehicleName = getVehicleMetadata(id)[1]
+		
+		imgCss.transform = `rotate(${dir}deg)`;
+		
 		if (owner > -1 || cargo > -1) {
-			var unitData = getUnitMetadata(owner);
-			var unitName = $( unit ).attr("name") + " (" + unitData[1] + ")";
-			var unitSide = unitData[2];
-			if (cargo > 0) { unitName = $( unit ).attr("name") + " (" + unitData[1] + " +" + cargo + ")"; }
-			$( unit + "> img" ).attr( "src", "src/icons/" + unitSide + "_veh." + aarIconSrc )
-			$( unit + "> span").html( unitName );
-			$( unit ).css({"color": "rgba(0, 0, 0, " + LDM.opacity.veh + ")"});
+			// Vehicle is occupied
+			// - change color to owner's side 
+			// - set name to vehicle name + owner name + number of cargo
+			const ownerMetadata = getUnitMetadata(owner);
+			const ownerName = ownerMetadata[1];
+			const ownerSide = ownerMetadata[2];
+			const name = cargo > 0 ? `${vehicleName} (${ownerName} +${cargo})` : `${vehicleName} (${ownerName})`;
+			
+			imgCss.filter = MARKER_COLORS[ownerSide];
+			labelCss.color = `rgba(0, 0, 0, ${LDM.opacity.veh})`
+			$label.html( name );
+			
 		} else {
-			$( unit + "> img" ).attr( "src", "src/icons/unknown_veh." + aarIconSrc )
-			$( unit + "> span").html(  getVehicleMetadata(id)[1] );
-			$( unit ).css({"color": "rgba(0, 0, 0, " + LDM.opacity.vehEmpty + ")"});
+			// Vehicle is empty 
+			// - change color to UNKNOWN
+			// - set text to vehicle default name
+			// - set opacity of the icon 
+			imgCss.filter = MARKER_COLORS.unknown;
+			labelCss.color = `rgba(0, 0, 0, ${LDM.opacity.vehEmpty})`;
+			$marker.html( vehicleName )
 		}
-
-		$( unit + " > img" ).rotate( dir );
-		setGridPos(unit, data);
-
-		if (alive < 1) { $( unit + "> img" ).attr( "src", "src/icons/dead_veh." + aarIconSrc ) }
+		
+		if (alive != 1) { imgCss.filter = MARKER_COLORS.dead; }
 	}
+	
+	setGridPos(id, data);
+	$img.css(imgCss);
+	$label.css(labelCss);
 };
 
 // Attacks
