@@ -635,57 +635,52 @@ function isPlayer(id) {
 // Actors
 
 function createObject(data,type) {
-	/* Creates DIV with nested IMG representing single unit
-	0: Unit Array 
-		[
-			0: unitId, 
-			1: name (if player name or vehicle type)
-			2: side (optional, side name of the unit; not set for vehicles)
-			3: isPlayer (optional, int, 1 - player, 0 - AI; not set for vehicles)
-		]
-	 1: "unit" or "veh"
-	*/
-	const id = data[0];
-	const name = data[1];
-	const side = (type == "unit") ? data[2] : "unknown";
-	const iconType = (type == "unit") ? "unit" : "vehicle";
-	const icon = `src/icons/${iconType}.${aarIconSrc}`;
-	
-	// TODO: Set filters 
-	let iconFilters = [
-		
-	]
-	
-	// Add new DIV
-	$( ".panzoom" ).append( 
-		"<div id='mrk-unit-" + 
-		id + 
-		"' class='unit-marker'><img class='icn' dir='0' src='" + 
-		icon + 
-		"' /><span>" + 
-		name + 
-		"</span></div>" 
-	);
+    /* Creates DIV with nested IMG representing single unit
+    0: Unit Array
+        [
+            0: unitId,
+            1: name (if player name or vehicle type)
+            2: side (optional, side name of the unit; not set for vehicles)
+            3: isPlayer (optional, int, 1 - player, 0 - AI; not set for vehicles)
+        ]
+     1: "unit" or "veh"
+    */
+    const id = data[0];
+    const name = data[1];
+    const side = (type == "unit") ? data[2] : "unknown";
+    const iconType = (type == "unit") ? "unit" : "vehicle";
+    const icon = `src/icons/${iconType}.${aarIconSrc}`;
 
-	// Set attributes for new DIV 
-	const $mrk = $( "#mrk-unit-" + id );
-	$mrk.attr({
-		"side": side,
-		"type": type,
-		"name": name
-	});
-	$mrk.css({
-	 	"font-size": getScaledVal(16) + "px",
-	 	"z-index": 2
-	});
-	
-	const $mrkImg = $("#mrk-unit-" + id + " > img");
-	$mrkImg.attr({"title": name});
-	$mrkImg.css({
-		"width": getScaledVal(32) + "px",
-		"height": getScaledVal(32) + "px",
-		"filter": ""
-	});
+    // Add new DIV
+    $( ".panzoom" ).append(
+        "<div id='mrk-unit-" +
+        id +
+        "' class='unit-marker'><img class='icn' dir='0' src='" +
+        icon +
+        "' /><span>" +
+        name +
+        "</span></div>"
+    );
+
+    // Set attributes for new DIV
+    const $mrk = $( "#mrk-unit-" + id );
+    $mrk.attr({
+        "side": side,
+        "type": type,
+        "name": name
+    });
+    $mrk.css({
+         "font-size": getScaledVal(16) + "px",
+         "z-index": 2
+    });
+
+    const $mrkImg = $("#mrk-unit-" + id + " > img");
+    $mrkImg.attr({"title": name});
+    $mrkImg.css({
+        "width": getScaledVal(32) + "px",
+        "height": getScaledVal(32) + "px",
+        "filter": ""
+    });
 }
 
 function setGridPos(id, data) {
@@ -705,105 +700,109 @@ function getGridPos(x,y) {
 }
 
 // Process unit - animate
+// Process unit - animate
 function processUnit(data,type) {
-	/*
-	0: unit/vehicle data array 
-		0: unitId
-		1: posX
-		2: posY 
-		3: direction 
-		4: alive 
-		5: inCargo (for unit)  -- flag that unit is in cargo 
-		   or owner (for vehicle) -- id of owner unit of the vehicle 
-		6: cargo (for vehicle) -- ids of units in vehicle 
-	1: "unit" or "veh"
-	*/
-	const id = data[0];
-	const $marker = $(`#mrk-unit-${id}`)
-	const $img = $(`#mrk-unit-${id} > img`);
-	const $label = $(`#mrk-unit-${id} > span`);
-	
-	let markerCss = {}
-	let imgCss = {
-		"width": getScaledVal(USM.size.icon),
-		"height": getScaledVal(USM.size.icon)
-	};
-	let labelCss = {
-		"font-size": USM.size.text
-	};
-	
-	if (data.length == 1) {
-		// Some special case? 
-		$marker.css("display", "hidden");
-		$img.css(imgCss);
-		$label.css(labelCss);
-		
-		return;
-	}	
+    /*
+    0: unit/vehicle data array
+        0: unitId
+        1: posX
+        2: posY
+        3: direction
+        4: alive
+        5: inCargo (for unit)  -- flag that unit is in cargo
+           or owner (for vehicle) -- id of owner unit of the vehicle
+        6: cargo (for vehicle) -- ids of units in vehicle
+    1: "unit" or "veh"
+    */
+    const id = data[0];
+    const $marker = $(`#mrk-unit-${id}`)
+    const $img = $(`#mrk-unit-${id} > img`);
+    const $label = $(`#mrk-unit-${id} > span`);
 
-	const dir = data[3];
-	const alive = data[4];
-	
-	if (type === "unit") {
-		const inCargo = data[5];
-		if (inCargo == -1) {
-			// Not in cargo 
-			labelCss.color = `rgba(0,0,0,${LDM.opacity.unit}`;
-			markerCss.visibility = "";
-			imgCss.transform = `rotate(${dir}deg)`
-			
-		} else {
-			// In cargo 
-			markerCss.left = "-20px";
-			markerCss.top = "-20px";
-			markerCss.visibility = "hidden";
-			
-		}
-		
-		// Change color to handle forawrd and backward frame direction - to color previously dead units
-		if (alive == 1) {
-			imgCss.filter = MARKER_COLORS[$marker.attr("side")];
-		} else {
-			// markerCss["z-index"] = 0;
-			labelCss.color = `rgba(0, 0, 0, ${LDM.opacity.vehEmpty})`,
-			imgCss.filter = isPlayer(id) ? MARKER_COLORS.deadPlayer : MARKER_COLORS.dead;
-		}
-	} else {
-		const owner = data[5];
-		const cargo = data[6];
-		const vehicleName = getVehicleMetadata(id)[1]
-		
-		imgCss.transform = `rotate(${dir}deg)`;
-		
-		if (owner > -1 || cargo > -1) {
-			// Vehicle is occupied
-			// - change color to owner's side 
-			// - set name to vehicle name + owner name + number of cargo
-			const ownerMetadata = getUnitMetadata(owner);
-			const ownerName = ownerMetadata[1];
-			const ownerSide = ownerMetadata[2];
-			const name = cargo > 0 ? `${vehicleName} (${ownerName} +${cargo})` : `${vehicleName} (${ownerName})`;
-			
-			imgCss.filter = MARKER_COLORS[ownerSide];
-			labelCss.color = `rgba(0, 0, 0, ${LDM.opacity.veh})`
-			$label.html( name );
-			
-		} else {
-			// Vehicle is empty 
-			// - change color to UNKNOWN
-			// - set text to vehicle default name
-			// - set opacity of the icon 
-			imgCss.filter = MARKER_COLORS.unknown;
-			labelCss.color = `rgba(0, 0, 0, ${LDM.opacity.vehEmpty})`;
-			$marker.html( vehicleName )
-		}
-		
-		if (alive != 1) { imgCss.filter = MARKER_COLORS.dead; }
-	}
-	
-	setGridPos(id, data);
-	$img.css(imgCss);
-	$label.css(labelCss);
+    let markerCss = {
+        "z-index": 2
+    }
+    let imgCss = {
+        "width": getScaledVal(USM.size.icon),
+        "height": getScaledVal(USM.size.icon)
+    };
+    let labelCss = {
+        "font-size": USM.size.text
+    };
+
+    if (data.length == 1) {
+        // Some special case?
+        $marker.css("display", "hidden");
+        $img.css(imgCss);
+        $label.css(labelCss);
+
+        return;
+    }
+
+    const dir = data[3];
+    const alive = data[4];
+
+    if (type === "unit") {
+        const inCargo = data[5];
+        if (inCargo == -1) {
+            // Not in cargo
+            labelCss.color = `rgba(0,0,0,${LDM.opacity.unit}`;
+            markerCss.visibility = "";
+            imgCss.transform = `rotate(${dir}deg)`
+
+        } else {
+            // In cargo
+            markerCss.left = "-20px";
+            markerCss.top = "-20px";
+            markerCss.visibility = "hidden";
+
+        }
+
+        // Change color to handle forawrd and backward frame direction - to color previously dead units
+        if (alive == 1) {
+            imgCss.filter = MARKER_COLORS[$marker.attr("side")];
+        } else {
+            markerCss["z-index"] = 0; // put dead unit underneath
+            labelCss.color = `rgba(0, 0, 0, ${LDM.opacity.vehEmpty})`,
+            imgCss.filter = isPlayer(id) ? MARKER_COLORS.deadPlayer : MARKER_COLORS.dead;
+        }
+    } else {
+        const owner = data[5];
+        const cargo = data[6];
+        const vehicleName = getVehicleMetadata(id)[1]
+
+        imgCss.transform = `rotate(${dir}deg)`;
+
+        if (owner > -1 || cargo > -1) {
+            // Vehicle is occupied
+            // - change color to owner's side
+            // - set name to vehicle name + owner name + number of cargo
+            const ownerMetadata = getUnitMetadata(owner);
+            const ownerName = ownerMetadata[1];
+            const ownerSide = ownerMetadata[2];
+            const name = cargo > 0 ? `${vehicleName} (${ownerName} +${cargo})` : `${vehicleName} (${ownerName})`;
+
+            imgCss.filter = MARKER_COLORS[ownerSide];
+            labelCss.color = `rgba(0, 0, 0, ${LDM.opacity.veh})`
+            $label.html( name );
+
+        } else {
+            // Vehicle is empty
+            // - change color to UNKNOWN
+            // - set text to vehicle default name
+            // - set opacity of the icon
+            imgCss.filter = MARKER_COLORS.unknown;
+            labelCss.color = `rgba(0, 0, 0, ${LDM.opacity.vehEmpty})`;
+            $label.html( vehicleName )
+        }
+
+        if (alive != 1) { imgCss.filter = MARKER_COLORS.dead; }
+    }
+
+    setGridPos(id, data);
+    $marker.css(markerCss);
+    $img.css(imgCss);
+    $label.css(labelCss);
 };
 
 // Attacks
