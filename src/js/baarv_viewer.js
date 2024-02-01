@@ -727,15 +727,6 @@ function processUnit(data,type) {
         "font-size": USM.size.text
     };
 
-    if (data.length == 1) {
-        // Some special case?
-        $marker.css("display", "hidden");
-        $img.css(imgCss);
-        $label.css(labelCss);
-
-        return;
-    }
-
     const dir = data[3];
     const alive = data[4];
 
@@ -850,24 +841,6 @@ function playReportStep (step, forced) {
     const units = aarData.timeline[step][0];
     const vehs = aarData.timeline[step][1];
     const attacks = aarData.timeline[step][2];
-
-    if (forced) {
-        $("[id^=mrk-unit-]").each(function () {
-            const id = parseInt( $( this ).attr("id").split("-")[2] );
-            const type = $( this ).attr("type");
-
-            if (type == "unit") {
-                const unitData = units.filter(function (unit) { if (unit[0] == id) { return unit }; return; });
-                processUnit( unitData.length > 0 ? unitData : [id], "unit" );
-            } else {
-                const vehData = vehs.filter(function (veh) { if (vehs[0] == id) { return veh } });
-                processUnit( vehData.length > 0 ? vehData : [id], "veh" );
-            }
-        });
-
-        $( ".panzoom" ).panzoom('resetDimensions');
-        return;
-    }
 
     for (var i = 0; i < units.length; i++) {
         processUnit( units[i], "unit" );
