@@ -30,9 +30,27 @@ var rptData = "";
 var reportGuid = "";
 var aarData;
 
+const windowsFilenameEscapeSymbols = [
+	/:/g,
+	/\*/g,
+	/\?/g,
+	/</g,
+	/>/g,
+	/\|/g,
+	/"/g,
+	/\\/g,
+	/\//g,
+	/ /g
+];
+
 function normalize(s) {
 	return s.replace(/""/g, '"')
 };
+
+function normalizeFilename(s) {
+	windowsFilenameEscapeSymbols.forEach(e => s = s.replace(e, "_"))
+	return s
+}
 
 function updateHeaderStatus(mode) {
 	switch (mode) {
@@ -437,7 +455,7 @@ var AARFileDetailsBase = function() {
 	this.configLine = "";
 
     this.setFilename = function() {
-    	this.filename = "AAR." + this.date + "." + this.island + "." + (this.name).replace(/ /g, '_');
+    	this.filename = "AAR." + this.date + "." + this.island + "." + normalizeFilename(this.name); // this.name.replace(/ /g, '_');
     	this.draw();
     };
 
