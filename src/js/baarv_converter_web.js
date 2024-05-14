@@ -26,8 +26,9 @@ var statusElement = {
 
 var enableInterpolation = false;
 var zipAARFile = true;
-var rptData = "";
+var rptData = [];
 var reportGuid = "";
+var allParsedMeta = [];
 var aarData;
 
 const windowsFilenameEscapeSymbols = [
@@ -84,8 +85,9 @@ function resetForm() {
 	
 	updateHeaderStatus( "default" );
 	
-	rptData = "";
+	rptData = [];
 	reportGuid = "";
+	allParsedMeta = [];
 	aarData = [];
 }
 
@@ -125,42 +127,92 @@ var openConfigFile = function(event) {
 	configReader.readAsText(input.files[0]);
 };
 
-function readFile(event) {	
-	var input = event.target; 
-	var reader = new FileReader();
 
-	var fileName = (uploader.files[0].name).split("_");
-	aarFileDate =  (fileName[1]).toLowerCase() == "x64" ? fileName[2] : fileName[1];
+function readFile(event) {
+	let addButton = function (meta) {
+		console.log(meta)
+		$( "#report-selector > ul" ).append(
+			`<li onClick='chooseReportToConvert(\"${meta.guid}\");'>${meta.island} ▸ ${meta.logTime} ▸ ${meta.name}</li>`
+		);
+	}
+
+	let readoutMetadata = function (s) {
+		let elements = s.replace("{","").replace("}","").split(/[:,]/).map((e) => e.trim().replaceAll('""',''));
+		let metadataObj = {}
+		for (let i = 0; i < elements.length; i += 2) {
+			metadataObj[elements[i]] = elements[i+1];
+		}
+
+		return metadataObj
+	}
+
+	let input = event.target;
+	let reader = new FileReader();
+
+	let filename = uploader.files[0].name;
+	let filenameElements = filename.split("_");
+	let aarFileDate =  (filenameElements[1]).toLowerCase() == "x64" ? filenameElements[2] : filenameElements[1];
+
+	/*
+	let sessionStorageCache = sessionStorage.getItem(filename)
+	if (sessionStorage.getItem(filename) != null) {
+		let metas = JSON.parse(sessionStorage.getItem(filename));
+		metas.forEach(e => addButton(e));
+		setTimeout( toggleProgressView(false), 500 );
+		updateHeaderStatus( "success" );
+
+		$( "#report-selector" ).css( "top", "75px" );
+		console.log("Retrieved from sessionStorage");
+		return
+	}
+	*/
 
 	reader.onload = function(){
-		var text = reader.result;
-		rptData = text;
-		if (text.length > 0) {
-			console.log( "Read!");
-
-			var listOfDirtyMetadata = rptData.match( /(.*)<AAR-.*><meta><core>(.*)<\/core><\/meta><\/AAR-.*>/ig);			
-			if ( listOfDirtyMetadata ) {
-				var listOfMetadata = [];
-				for (var i = 0; i < listOfDirtyMetadata.length; i++) {
-					var parsedMeta = listOfDirtyMetadata[i].match( /(.*)<AAR-.*><meta><core>(.*)<\/core><\/meta><\/AAR-.*>/i);
-					var meta = JSON.parse( normalize(parsedMeta[2]) )
-					meta.logTime = parsedMeta[1].slice(0,-2);
-					$( "#report-selector > ul" ).append(
-						"<li onClick='chooseReportToConvert(\"" + meta.guid + "\"); '>" + meta.island + " ▸ " + meta.logTime + " ▸ " + meta.name + "</li>"
-					);
-					setTimeout( toggleProgressView(false), 500 );
-				}
-				
-				updateHeaderStatus( "success" );
-				$( "#report-selector" ).css( "top", "75px" );
-			} else {
-				console.log( "Not an AAR!" );
-				updateHeaderStatus( "failedWrong" );
-			}
-		} else {
+		let lines = reader.result.split("\n");
+		if (lines.length == 0) {
 			console.log( "Empty!" );
 			updateHeaderStatus( "failedEmpty" );
+			return
+		};
+
+		let metaTestPattern = /<meta><core>/ig
+		let metaMatchPattern = /(.*)<AAR-.*><meta><core>(.*)<\/core><\/meta><\/AAR-.*>/i
+		let aarTestPattern = /<AAR-.*>/ig
+
+		// Read all AAR related RPT data
+		rptData = lines.filter((l) => aarTestPattern.test(l));
+
+		// Read metadata lines
+		let metadataLines = rptData.filter((l) => metaTestPattern.test(l))
+		if (metadataLines.length == 0) {
+			console.log( "No AAR found!" );
+			updateHeaderStatus( "failedWrong" );
+			return
 		}
+
+		console.log( "Read!");
+		allParsedMeta = [];
+		metadataLines.forEach((l) => {
+			let matchGroups = l.match(metaMatchPattern)
+			// Check for
+			let metadata = readoutMetadata(matchGroups[2])
+			metadata.logTime = matchGroups[1].slice(0,-2);
+			metadata.logDate = aarFileDate;
+			console.log(metadata)
+
+			allParsedMeta.push(metadata);
+
+			addButton(metadata);
+			setTimeout( toggleProgressView(false), 500 );
+		})
+
+		updateHeaderStatus( "success" );
+		$( "#report-selector" ).css( "top", "75px" );
+
+		// Save to session storage (in case 2+ aars in file - skip initial parsing).
+		/*
+		sessionStorage.setItem(filename, JSON.stringify(allParsedMeta));
+		*/
 	};
 	reader.readAsText(input.files[0]);
 	
@@ -182,7 +234,7 @@ function convertInit() {
 
 function toggleProgressView(on) {
 	$( "#progress-header" ).html( "" );
-	$( "#progress-status" ).html( "" );	
+	$( "#progress-status" ).html( "" );
 	if (on) {
 		$( "#progress-viewer" ).css("top", "150px");
 	} else {
@@ -214,61 +266,73 @@ function convertToAAR() {
 		"timeline": []
 	};
 	
-	var consoleMsgEnabled = true;
-	var consoleDebugEnabled = false;
+	let consoleMsgEnabled = true;
+	let consoleDebugEnabled = false;
 	function logMsg(t) { if (consoleMsgEnabled) { console.log( t ) }};
 	function logDebug(t) { if (consoleDebugEnabled) { console.log( t ) }};
 	
-	var re = new RegExp( "<AAR-" + reportGuid + ">.*<\/AAR-" + reportGuid + ">", "g" )
-	var rptItems = rptData.match( re );
-	var metadataCore = JSON.parse( normalize(( rptItems[0].match( /(<core>)(.*)(<\/core>)/i) )[2]) ); 
+	let re = new RegExp( "<AAR-" + reportGuid + ">.*<\/AAR-" + reportGuid + ">", "g" )
+	let metadataCore = allParsedMeta.filter((e)=>e.guid == reportGuid)[0];
+	console.log(metadataCore);
+
 	
 	logMsg( "Metadata: Core [ Processing ]" );
 	aarData.metadata.island = metadataCore.island;
 	aarData.metadata.name = metadataCore.name;
 	aarData.metadata.desc = metadataCore.summary;
+	aarData.metadata.date = metadataCore.logDate;
 	logMsg( "Metadata: Core [ OK ]" );
-	
+
+	let aarLines = rptData.filter((e)=>re.test(e))
+
+	let actorMetaTestPattern = /<meta><(veh|unit)>/i
+	let actorMetaPattern = /<meta><(unit|veh)>(.*)<\/(unit|veh)><\/meta>/i
+	let eventTestPattern = /<(\d+)><(unit|veh|av)>/i
+	let eventPattern = /<(\d+)><(unit|veh|av)>(.*)<\/(unit|veh|av)>/i
+
 	logMsg( "Objects [ Processing ]" );	
-	for (var i = 0; i < rptItems.length; i++) {		
-		try {
-			var u = JSON.parse( normalize(rptItems[i].match( /(<meta><veh>)(.*)(<\/veh><\/meta>)/i )[2]) );
-			(aarData.metadata.objects.vehs).push(u.vehMeta);
-			continue;
-		} catch(e) {};
-		
-		try {
-			var u = JSON.parse( normalize(rptItems[i].match( /(<meta><unit>)(.*)(<\/unit><\/meta>)/i )[2]) );
-			(aarData.metadata.objects.units).push(u.unitMeta);
-			if (u.unitMeta[3] > 0) {
-				(aarData.metadata.players).push( [u.unitMeta[1],u.unitMeta[2]] );
+	for (let i = 0; i < aarLines.length; i++) {
+		let line = aarLines[i];
+
+		// Check for unit's metadata
+		if (actorMetaTestPattern.test(line)) {
+			let matchGroups = line.match(actorMetaPattern)
+			if (matchGroups == null) continue;
+			[ _, actorType, actorMetadata ] = matchGroups
+			actorMetadata = JSON.parse(normalize(actorMetadata))
+
+			if (actorType == "veh") {
+				aarData.metadata.objects.vehs.push(actorMetadata.vehMeta)
+			} else {
+				aarData.metadata.objects.units.push(actorMetadata.unitMeta)
+				if (actorMetadata.unitMeta[3] > 0) {
+					(aarData.metadata.players).push([
+						actorMetadata.unitMeta[1],
+						actorMetadata.unitMeta[2]
+					]);
+				}
 			}
 			continue;
-		} catch(e) {};
-		
-		try {
-			var timelabel = rptItems[i].match( /(<)(\d+)(>)/i)[2];			
-			var unittype = rptItems[i].match( /(<unit>|<veh>|<av>)(.*)(<\/unit>|<\/veh>|<\/av>)/i )[1];
-			var unitdata = rptItems[i].match( /(<unit>|<veh>|<av>)(.*)(<\/unit>|<\/veh>|<\/av>)/i )[2];
-			
-			if (typeof (aarData.timeline[timelabel]) == "undefined") {
-				aarData.timeline[timelabel] = [ [], [], [] ];
+		}
+
+		// Check for event data
+		if (eventTestPattern.test(line)) {
+			let matchGroups = line.match(eventPattern);
+			if (matchGroups == null) continue;
+			[ _, timelabel, eventType, eventData ] = matchGroups;
+
+			let timelineEvents = aarData.timeline[timelabel]
+			if (timelineEvents == null) {
+				timelineEvents = [ [], [], [] ];
+				aarData.timeline[timelabel] = timelineEvents;
 			}
 
-			switch (unittype) {
-				case "<unit>": 
-					(aarData.timeline[timelabel])[0].push( JSON.parse(normalize(unitdata)) );
-					break;
-				case "<veh>":
-					(aarData.timeline[timelabel])[1].push( JSON.parse(normalize(unitdata)) );
-					break;
-				case "<av>":
-					(aarData.timeline[timelabel])[2].push( JSON.parse(normalize(unitdata)) );
-					break;
-			};
-			
+			eventData = JSON.parse(normalize(eventData));
+			eventTypeId = ["unit","veh","av"].indexOf(eventType)
+
+			timelineEvents[eventTypeId].push(eventData);
 			continue;
-		} catch(e) {};
+		}
 	};
 	
 	logMsg( "Objects [ OK ]" );
@@ -401,9 +465,7 @@ function convertToAAR() {
 		};
 		$( "#player-list" ).append( "<li class='player-side-icon' style='padding: 2px 4px; background-color: " + color + "'>" + aarData.metadata.players[i][0] + "</li>" );				
 	}
-	
-	
-	
+
 	logMsg("Done!");
 	toggleProgressView(false);
 	$( "#result-form" ).css( "top", "75px" );
@@ -449,7 +511,7 @@ function getTimeLabel(t) {
 var AARFileDetailsBase = function() {
 	this.name 		= aarData.metadata.name;
 	this.island 	= aarData.metadata.island;
-	this.date 		= aarFileDate;
+	this.date 		= aarData.metadata.date;
 	this.summary	= aarData.metadata.desc;
 	this.filename 	= "";
 	this.configLine = "";
