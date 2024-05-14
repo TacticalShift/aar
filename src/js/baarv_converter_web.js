@@ -4,6 +4,10 @@ var eStyle = {
 			"text": "Open RPT file to convert...",
 			"bgColor": "#5a5a5a"			
 		},
+		"suggest": {
+			"text": "Select AAR to parse",
+			"bgColor": "rgb(155, 195, 78)"
+		},
 		"success": {
 			"text": "Choose report from the list to convert!",
 			"bgColor": "rgb(155, 195, 78)"
@@ -54,27 +58,12 @@ function normalizeFilename(s) {
 }
 
 function updateHeaderStatus(mode) {
-	switch (mode) {
-		case "default": 
-			$( statusElement.text ).html( eStyle.headerStatus.default.text );
-			$( statusElement.bar ).css( "background-color",  eStyle.headerStatus.default.bgColor )
-			break;
-		case "success":
-			$( statusElement.text ).html( eStyle.headerStatus.success.text );
-			$( statusElement.bar ).css( "background-color", eStyle.headerStatus.success.bgColor );	
-			break;
-		case "failedEmpty":
-			$( statusElement.text ).html( eStyle.headerStatus.failedEmpty.text );
-			$( statusElement.bar ).css( "background-color", eStyle.headerStatus.failedEmpty.bgColor );
-			break;
-		case "failedWrong":
-			$( statusElement.text ).html( eStyle.headerStatus.failedWrong.text );
-			$( statusElement.bar ).css( "background-color", eStyle.headerStatus.failedWrong.bgColor );
-			break;
-	}	
+	$( statusElement.text ).html( eStyle.headerStatus[mode].text );
+	$( statusElement.bar ).css( "background-color",  eStyle.headerStatus[mode].bgColor )
 }
 
-function resetForm() {
+function resetForm(wipe = false) {
+	$( "#header-back-btn").css("display", "none");
 	$( "#result-form" ).css( "top", "-1000px" );
 	$( "#mission-desc" ).val("");
 	$( "#mission-date" ).val("");
@@ -83,11 +72,13 @@ function resetForm() {
 	$( "#report-selector" ).css( "top", "-1000px" );
 	$( "#report-selector > ul" ).html( "" );
 	
-	updateHeaderStatus( "default" );
-	
-	rptData = [];
+	if (wipe) {
+		updateHeaderStatus( "default" );
+
+		rptData = [];
+		allParsedMeta = [];
+	}
 	reportGuid = "";
-	allParsedMeta = [];
 	aarData = [];
 }
 
@@ -127,15 +118,7 @@ var openConfigFile = function(event) {
 	configReader.readAsText(input.files[0]);
 };
 
-
 function readFile(event) {
-	let addButton = function (meta) {
-		console.log(meta)
-		$( "#report-selector > ul" ).append(
-			`<li onClick='chooseReportToConvert(\"${meta.guid}\");'>${meta.island} ▸ ${meta.logTime} ▸ ${meta.name}</li>`
-		);
-	}
-
 	let readoutMetadata = function (s) {
 		let elements = s.replace("{","").replace("}","").split(/[:,]/).map((e) => e.trim().replaceAll('""',''));
 		let metadataObj = {}
@@ -153,19 +136,6 @@ function readFile(event) {
 	let filenameElements = filename.split("_");
 	let aarFileDate =  (filenameElements[1]).toLowerCase() == "x64" ? filenameElements[2] : filenameElements[1];
 
-	/*
-	let sessionStorageCache = sessionStorage.getItem(filename)
-	if (sessionStorage.getItem(filename) != null) {
-		let metas = JSON.parse(sessionStorage.getItem(filename));
-		metas.forEach(e => addButton(e));
-		setTimeout( toggleProgressView(false), 500 );
-		updateHeaderStatus( "success" );
-
-		$( "#report-selector" ).css( "top", "75px" );
-		console.log("Retrieved from sessionStorage");
-		return
-	}
-	*/
 
 	reader.onload = function(){
 		let lines = reader.result.split("\n");
@@ -201,22 +171,29 @@ function readFile(event) {
 			console.log(metadata)
 
 			allParsedMeta.push(metadata);
-
-			addButton(metadata);
-			setTimeout( toggleProgressView(false), 500 );
 		})
+
+		setTimeout( showAARParseSuggestion(), 500 );
 
 		updateHeaderStatus( "success" );
 		$( "#report-selector" ).css( "top", "75px" );
-
-		// Save to session storage (in case 2+ aars in file - skip initial parsing).
-		/*
-		sessionStorage.setItem(filename, JSON.stringify(allParsedMeta));
-		*/
 	};
 	reader.readAsText(input.files[0]);
-	
 };
+
+function showAARParseSuggestion () {
+	resetForm(false);
+	$( "#report-selector" ).css( "top", "75px" );
+	updateHeaderStatus( "suggest" );
+	toggleProgressView(false)
+
+	let addButton = function (meta) {
+		$( "#report-selector > ul" ).append(
+			`<li onClick='chooseReportToConvert(\"${meta.guid}\");'>${meta.island} ▸ ${meta.logTime} ▸ ${meta.name}</li>`
+		);
+	}
+	allParsedMeta.forEach(e => addButton(e));
+}
 
 function chooseReportToConvert(guid) {	
 	reportGuid = guid;
@@ -272,8 +249,6 @@ function convertToAAR() {
 	function logDebug(t) { if (consoleDebugEnabled) { console.log( t ) }};
 	
 	let metadataCore = allParsedMeta.filter((e)=>e.guid == reportGuid)[0];
-	console.log(metadataCore);
-
 	
 	logMsg( "Metadata: Core [ Processing ]" );
 	aarData.metadata.island = metadataCore.island;
@@ -291,7 +266,6 @@ function convertToAAR() {
 	let eventPattern = /<(\d+)><(unit|veh|av)>(.*)<\/(unit|veh|av)>/i
 
 	logMsg( "Objects [ Processing ]" );	
-	console.log(aarLines)
 	for (let i = 0; i < aarLines.length; i++) {
 		let line = aarLines[i];
 
@@ -305,8 +279,6 @@ function convertToAAR() {
 			if (actorType == "veh") {
 				aarData.metadata.objects.vehs.push(actorMetadata.vehMeta)
 			} else {
-				console.log("Meta for units")
-				console.log(actorMetadata)
 				aarData.metadata.objects.units.push(actorMetadata.unitMeta)
 				if (actorMetadata.unitMeta[3] > 0) {
 					let playerData = [
@@ -573,6 +545,8 @@ var AARFileDetailsBase = function() {
         $( "#mission-island" ).val( this.island );
         $( "#mission-desc" ).val( this.summary );
         $( "#mission-date" ).val( this.date );
+
+		$( "#header-back-btn").css("display", "");
 	};
 	this.init = function() {
 		this.setFilename();
@@ -610,7 +584,6 @@ function saveAARFile(data) {
 
 function saveZipFile(filename, blob) {
 	let onClose = function (blob) { 
-		console.log(blob);
 		saveFile(filename + ".zip", blob)
 	};
 	
@@ -642,22 +615,27 @@ function saveConfigFile(data) {
     a.click();
 }
 
+/*
 function initToggleInterpolate () {
-	$('#header-interpolate-btn').on("click", function () {
+	$('#header-back-btn').on("click", function () {
 		if (enableInterpolation) {
 			$(this).removeClass("header-btn-selected");
-			enableInterpolation = false;
+			//enableInterpolation = false;
 		} else {
 			$(this).addClass("header-btn-selected");
-			enableInterpolation = true;
+			//enableInterpolation = true;
 		};
 	});
 };
-
+*/
 $( document ).ready(function() {
 	$( ".dl-2 > input, textarea, button" ).attr( "disabled", "true" );
 	resetForm();
 	
 	zip.workerScriptsPath = "src/js/";
-	initToggleInterpolate();
+	$('#header-back-btn').on("click", (event)=>{
+		showAARParseSuggestion()
+	})
+
+	// initToggleInterpolate();
 });
