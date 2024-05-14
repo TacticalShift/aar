@@ -175,9 +175,9 @@ function readFile(event) {
 			return
 		};
 
-		let metaTestPattern = /<meta><core>/ig
+		let metaTestPattern = /<meta><core>/i
 		let metaMatchPattern = /(.*)<AAR-.*><meta><core>(.*)<\/core><\/meta><\/AAR-.*>/i
-		let aarTestPattern = /<AAR-.*>/ig
+		let aarTestPattern = /<AAR-.*>/i
 
 		// Read all AAR related RPT data
 		rptData = lines.filter((l) => aarTestPattern.test(l));
@@ -271,7 +271,6 @@ function convertToAAR() {
 	function logMsg(t) { if (consoleMsgEnabled) { console.log( t ) }};
 	function logDebug(t) { if (consoleDebugEnabled) { console.log( t ) }};
 	
-	let re = new RegExp( "<AAR-" + reportGuid + ">.*<\/AAR-" + reportGuid + ">", "g" )
 	let metadataCore = allParsedMeta.filter((e)=>e.guid == reportGuid)[0];
 	console.log(metadataCore);
 
@@ -283,6 +282,7 @@ function convertToAAR() {
 	aarData.metadata.date = metadataCore.logDate;
 	logMsg( "Metadata: Core [ OK ]" );
 
+	let re = new RegExp( `<AAR-${reportGuid}>`, "i" )
 	let aarLines = rptData.filter((e)=>re.test(e))
 
 	let actorMetaTestPattern = /<meta><(veh|unit)>/i
@@ -291,6 +291,7 @@ function convertToAAR() {
 	let eventPattern = /<(\d+)><(unit|veh|av)>(.*)<\/(unit|veh|av)>/i
 
 	logMsg( "Objects [ Processing ]" );	
+	console.log(aarLines)
 	for (let i = 0; i < aarLines.length; i++) {
 		let line = aarLines[i];
 
@@ -304,12 +305,19 @@ function convertToAAR() {
 			if (actorType == "veh") {
 				aarData.metadata.objects.vehs.push(actorMetadata.vehMeta)
 			} else {
+				console.log("Meta for units")
+				console.log(actorMetadata)
 				aarData.metadata.objects.units.push(actorMetadata.unitMeta)
 				if (actorMetadata.unitMeta[3] > 0) {
-					(aarData.metadata.players).push([
+					let playerData = [
 						actorMetadata.unitMeta[1],
 						actorMetadata.unitMeta[2]
-					]);
+					]
+					let alreadyReported = aarData.metadata.players.some((e)=> {
+						return e[0] == playerData[0] && e[1] == playerData[1]
+					})
+					if (alreadyReported) continue;
+					(aarData.metadata.players).push(playerData);
 				}
 			}
 			continue;
