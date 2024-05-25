@@ -517,7 +517,7 @@ var AARFileDetailsBase = function() {
         console.log( "AAR text re-generated.");
     };
     this.generateConfigLine = function() {
-    	var br = "\n";
+    	const br = "\n";
     	this.configLine = '	{' +  br + '		"date": "' + this.date
     	+ '"' +  br + '		,"title": "' + this.name
     	+ '"' +  br + '		,"terrain": "' + this.island
@@ -547,11 +547,14 @@ var AARFileDetailsBase = function() {
         $( "#mission-date" ).val( this.date );
 
 		$( "#header-back-btn").css("display", "");
+		$('#output-config-line textarea').remove();
+		$('#output-config-uploader label').remove();
 	};
 	this.init = function() {
 		this.setFilename();
 		this.draw();
 		this.initEvents();
+		this.configLine = "";
 	};
 
 	this.init();
